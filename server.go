@@ -59,8 +59,6 @@ type WebPage struct {
 }
 
 func NewWebPage(title []byte, content []byte) *WebPage {
-	u := make(map[string]string)
-	u["home"] = "/"
 	return &WebPage{
 		Title:   title,
 		Content: content,
