@@ -3,9 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	//"html/template"
+	"html/template"
 	"io/ioutil"
 	"net/http"
+	"path/filepath"
+	"strings"
 )
 
 /*//////
@@ -18,7 +20,7 @@ Config
 
 type Config struct {
 	TemplateDir string
-	Port        int
+	Port        string
 	Mail        map[string]string
 	BasicAuth   map[string]string
 }
@@ -42,10 +44,35 @@ Global-y stuff
 
 var appUrls map[string]string
 
+var templates map[string]*template.Template
+
 func initApp() {
 	loadConfig("config.json", &appConfig)
 	appUrls = make(map[string]string)
-	appUrls["home"] = "/"
+	appUrls["home"] = "/home/"
+	appUrls["photos"] = "/photos/"
+	appUrls["blog"] = "/blog/"
+	appUrls["about"] = "/about/"
+	appUrls["code"] = "/code/"
+	appUrls["writing"] = "/writing/"
+	appUrls["static"] = "/static/"
+	appUrls["staticRoot"] = "./static"
+
+	if templates == nil {
+		templates = make(map[string]*template.Template)
+	}
+
+	templateFiles, err := filepath.Glob(appConfig.TemplateDir + "*.tmpl")
+	if err != nil {
+		panic("Could not load files in templateDir")
+	}
+
+	for _, tmpl := range templateFiles {
+		templates[strings.TrimSuffix(filepath.Base(tmpl), ".tmpl")] =
+			template.Must(template.ParseFiles(
+				tmpl, appConfig.TemplateDir+"base.tmpl"))
+	}
+
 }
 
 /*//////
@@ -53,18 +80,13 @@ Types
 /////*/
 
 type WebPage struct {
-	Title   []byte
-	Content []byte
-	Urls    map[string]string
+	Urls map[string]string
 }
 
-func NewWebPage(title []byte, content []byte) *WebPage {
+func NewWebPage() *WebPage {
 	return &WebPage{
-		Title:   title,
-		Content: content,
-		Urls:    appUrls,
+		Urls: appUrls,
 	}
-
 }
 
 /*//////
@@ -75,14 +97,38 @@ Functions
 Helpers
 /////*/
 
+func renderTemplate(w http.ResponseWriter, name string, p *WebPage) error {
+	tmpl, ok := templates[name]
+	if !ok {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write([]byte(
+			"<h2>Better tell the administrator we couldn't find the template.</h2>"))
+		return fmt.Errorf("Could not locate template")
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	return tmpl.ExecuteTemplate(w, "base", p)
+}
+
 /*//////
 Handlers
 /////*/
 
-//////////////////////
+func homeHandler(w http.ResponseWriter, r *http.Request) {
+	renderTemplate(w, "index", NewWebPage())
+}
+
+//-/-/-/-/-/-/-/-/
+// Here we go!
+//-/-/-/-/-/-/-/-/
 func main() {
 	initApp()
-	fmt.Println(NewWebPage([]byte("hello"), []byte("world!")))
-	//	http.HandleFunc('/path/', aHandler)
-	http.ListenAndServe(":8080", nil)
+	http.HandleFunc(appUrls["home"], homeHandler)
+	http.Handle(appUrls["static"],
+		http.StripPrefix(appUrls["static"],
+			http.FileServer(http.Dir(appUrls["staticRoot"]))))
+	//http.HandleFunc("/", homeHandler)
+	err := http.ListenAndServe(":"+appConfig.Port, nil)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
