@@ -20,12 +20,54 @@
     </p>
     </span>
 </div>
-
 <div class="row" id="home_content">
 	<div class="col-lg-12" style="text-align: center;">
-		<h2>Stuff</h2>
+		<h2>Here's what I can do:</h2>
+    </div>
+
+	<div class="col-lg-6">
+		<h3>Data &amp; Information</h3>
+		<p>I do data mining, network analysis, visualizations, and ontology development.</p>
+		<p>With a specialty in locations.</p>
+		<p>My preferred tools are:
+			<ul>
+				<li>python (numpy, scipy, etc.)</li>
+				<li>r</li>
+				<li>sql, mongo</li>
+				<li>weka</li>
+				<li>d3 for visualizations</li>
+			</ul>
+	          <a href="#show_gallery" id="show_gallery">Click here</a> to see a gallery of visualizations. (all information anonymized.)</p>
+	           <div class="img-sample-hover" id="gallery">
+		            <img src="{{ .Urls.static }}samples/domains.jpeg" style="width: 100%;" />
+		            <br />&nbsp;
+		            <img src="{{ .Urls.static }}samples/emails.png" style="width: 100%;" />
+		            <br />&nbsp;
+		            <img src="{{ .Urls.static }}samples/uhour.png" style="width: 100%;" />
+		            <br />&nbsp;
+	            <img src="{{ .Urls.static }}samples/locs.jpeg" style="width: 100%;" />
+			</div>
 	</div>
-</div>
+
+    <div class="col-lg-6">
+		<h3>Writing &amp; Web</h3>
+          <p>I make websites (you know, like this one), and I write stuff, too.</p>
+
+          <h4>Web</h4>
+          <p>My preferred tools are:
+            <ul>
+              <li>python (google app engine, flask, django, tornado, celery)</li>
+              <li>javascript (jQuery, d3, bootstrap, angular, <i>und so weiter</i>)</li>
+              <li>sql, mongo</li>
+              <li>google cloud, aws (s3, ec2), heroku, docker</li>
+            </ul>
+          </p>
+
+          <h4>Writing</h4>
+          <p>I blog, and I can blather about current events with the best of them, which is free unless you want it well-written.</p>
+          <p>I also write fiction, which is generally well-received though I haven't tried to publish recently. If you'd like a sample of my newest just let me know. <a href="{{ .Urls.writing }}">Click here</a> to see a bit.</p>
+        </div>
+	</div>
 {{ end }}
 
 {{ define "styles" }}body {
@@ -33,6 +75,7 @@
       "{{ .Urls.static }}backgrounds/bridge.jpg"
     );
 	background-attachment: fixed;
+	background-size: cover;
 }
 
 .header {
@@ -52,4 +95,34 @@
 	background-color: white;
 	width: 100%;
 	height: 100%;
-}{{ end }}
+}
+
+.blockquote {
+	font-size: 10px;
+}
+{{ end }}
+
+{{ define "scripts" }}
+<script>
+	$(document).ready(function() {
+		$('#contactform').hide();
+        $('#gallery').hide();
+		$('#contact_btn').click(function() {
+			$('#jumbo_content').fadeOut("slow", function() {
+			});
+		 	$('#jumbo_replace').fadeIn("slow", function() {
+			});
+		  	$('#contactform').fadeIn("slow", function() {
+		  	});
+		});
+        $('[data-toggle="tooltip"]').tooltip();
+        $('[data-toggle="tooltip-html"]').tooltip({
+          'html': true
+        });
+        $('#show_gallery').click(function() {
+          $('#gallery').fadeIn('slow', function() {
+          });
+        });
+	});
+</script>
+{{ end }}
