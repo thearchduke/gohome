@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -46,6 +47,8 @@ var appUrls map[string]string
 
 var templates map[string]*template.Template
 
+var markdownPatterns map[string]*regexp.Regexp
+
 func initApp() {
 	loadConfig("config.json", &appConfig)
 	appUrls = make(map[string]string)
@@ -58,9 +61,7 @@ func initApp() {
 	appUrls["static"] = "/static/"
 	appUrls["staticRoot"] = "./static"
 
-	if templates == nil {
-		templates = make(map[string]*template.Template)
-	}
+	templates = make(map[string]*template.Template)
 
 	templateFiles, err := filepath.Glob(appConfig.TemplateDir + "*.tmpl")
 	if err != nil {
@@ -73,6 +74,8 @@ func initApp() {
 				tmpl, appConfig.TemplateDir+"base.tmpl"))
 	}
 
+	markdownPatterns = make(map[string]*regexp.Regexp)
+	markdownPatterns["h1"] = regexp.MustCompile("(?m)\n|^# *[^#][^\n]*")
 }
 
 /*//////
@@ -92,6 +95,16 @@ func NewWebPage() *WebPage {
 /*//////
 Functions
 /////*/
+
+// markdown
+func md_makeH1(src []byte) []byte {
+	s := strings.Replace(string(src), "#", "", 1)
+	if s != "\n" {
+		out := "<h1>" + s + "</h1>"
+		return []byte(out)
+	}
+	return nil
+}
 
 /*//////
 Helpers
