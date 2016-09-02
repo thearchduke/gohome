@@ -75,7 +75,13 @@ func initApp() {
 	}
 
 	markdownPatterns = make(map[string]*regexp.Regexp)
-	markdownPatterns["h1"] = regexp.MustCompile("(?m)\n|^# *[^#][^\n]*")
+	markdownPatterns["h"] = regexp.MustCompile("(?m)\n|^#+ *[^#][^\n]*")
+	markdownPatterns["p"] = regexp.MustCompile("(?m)\n|^[^<][^#][^\n]+")
+	markdownPatterns["hr"] = regexp.MustCompile("(?m)\n|^---+")
+	markdownPatterns["em"] = regexp.MustCompile(`(?U)[\*_]+(.*)[\*_]+`)
+	markdownPatterns["inline"] = regexp.MustCompile("(?U)`(.*)`")
+	markdownPatterns["a"] = regexp.MustCompile(`(?U)\[(.*)\]\((.*)\)`)
+	markdownPatterns["img"] = regexp.MustCompile(`(?U)!\[(.*)\]\((.*)\)`)
 }
 
 /*//////
@@ -93,22 +99,52 @@ func NewWebPage() *WebPage {
 }
 
 /*//////
-Functions
+Functions & Helpers
 /////*/
 
 // markdown
-func md_makeH1(src []byte) []byte {
-	s := strings.Replace(string(src), "#", "", 1)
+func markdownMakeH(src []byte) []byte {
+	str_src := string(src)
+	octothorps := strings.Count(str_src, "#")
+	s := strings.Replace(str_src, "#", "", -1)
+	out := fmt.Sprintf("<h%[1]v>%[2]v</h%[1]v>", octothorps, s)
 	if s != "\n" {
-		out := "<h1>" + s + "</h1>"
 		return []byte(out)
 	}
-	return nil
+	return src
 }
 
-/*//////
-Helpers
-/////*/
+func markdownMakeP(src []byte) []byte {
+	s := string(src)
+	if s != "\n" {
+		return []byte("<p>" + s + "</p>")
+	}
+	return src
+}
+
+func markdownMakeHr(src []byte) []byte {
+	s := string(src)
+	if s != "\n" {
+		return []byte("<hr/>")
+	}
+	return src
+}
+
+func parseMarkdownFile(fname string) []byte {
+	s, _ := ioutil.ReadFile(fname)
+	return parseMarkdown(s)
+}
+
+func parseMarkdown(src []byte) []byte {
+	src = markdownPatterns["h"].ReplaceAllFunc(src, markdownMakeH)
+	src = markdownPatterns["em"].ReplaceAll(src, []byte("<em>$1</em>"))
+	src = markdownPatterns["inline"].ReplaceAll(src, []byte("<code>$1</code>"))
+	src = markdownPatterns["img"].ReplaceAll(src, []byte("<img src=\"$2\" alt=\"$1\">"))
+	src = markdownPatterns["a"].ReplaceAll(src, []byte("<a href=\"$2\">$1</a>"))
+	src = markdownPatterns["hr"].ReplaceAllFunc(src, markdownMakeHr)
+	src = markdownPatterns["p"].ReplaceAllFunc(src, markdownMakeP)
+	return src
+}
 
 func renderTemplate(w http.ResponseWriter, name string, p *WebPage) error {
 	tmpl, ok := templates[name]
@@ -135,6 +171,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 //-/-/-/-/-/-/-/-/
 func main() {
 	initApp()
+	//fmt.Println(string(parseMarkdownFile("reg.md")))
 	http.HandleFunc(appUrls["home"], homeHandler)
 	http.Handle(appUrls["static"],
 		http.StripPrefix(appUrls["static"],
