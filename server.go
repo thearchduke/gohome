@@ -1,13 +1,13 @@
 package main
 
 import (
+	"./markdown"
 	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
-	"regexp"
 	"strings"
 )
 
@@ -48,9 +48,9 @@ var appUrls map[string]string
 
 var templates map[string]*template.Template
 
-var markdownPatterns map[string]*regexp.Regexp
-
 var blogPosts map[string]string
+
+var parser *markdown.MarkdownParser
 
 func initApp() {
 	loadConfig("config.json", &appConfig)
@@ -77,23 +77,18 @@ func initApp() {
 				tmpl, appConfig.TemplateDir+"base.tmpl"))
 	}
 
-	markdownPatterns = make(map[string]*regexp.Regexp)
-	markdownPatterns["h"] = regexp.MustCompile("(?m)\n|^#+ *[^#][^\n]*")
-	markdownPatterns["p"] = regexp.MustCompile("(?m)\n|^[^<][^#][^\n]+")
-	markdownPatterns["hr"] = regexp.MustCompile("(?m)\n|^---+")
-	markdownPatterns["em"] = regexp.MustCompile(`(?U)[\*_]+(.*)[\*_]+`)
-	markdownPatterns["inline"] = regexp.MustCompile("(?U)`(.*)`")
-	markdownPatterns["a"] = regexp.MustCompile(`(?U)\[(.*)\]\((.*)\)`)
-	markdownPatterns["img"] = regexp.MustCompile(`(?U)!\[(.*)\]\((.*)\)`)
-
 	blogPosts = make(map[string]string)
 	blogFiles, err := filepath.Glob(appConfig.BlogDir + "*.md")
 	if err != nil {
 		panic("Could not load blog markdown files")
 	}
+
+	parser = markdown.NewMarkdownParser()
+
 	for _, mdfile := range blogFiles {
+		s, _ := ioutil.ReadFile(mdfile)
 		blogPosts[strings.TrimSuffix(filepath.Base(mdfile), ".md")] =
-			parseMarkdownFile(mdfile)
+			parser.Parse(string(s))
 	}
 }
 
@@ -122,47 +117,6 @@ func NewBlogPage(n string) *WebPage {
 /*//////
 Functions & Helpers
 /////*/
-
-// markdown
-func markdownMakeH(src string) string {
-	octothorps := strings.Count(src, "#")
-	s := strings.Replace(src, "#", "", -1)
-	out := fmt.Sprintf("<h%[1]v>%[2]v</h%[1]v>", octothorps, s)
-	if s != "\n" {
-		return out
-	}
-	return src
-}
-
-func markdownMakeP(src string) string {
-	if src != "\n" {
-		return "<p>" + src + "</p>"
-	}
-	return src
-}
-
-func markdownMakeHr(src string) string {
-	if src != "\n" {
-		return "<hr/>"
-	}
-	return src
-}
-
-func parseMarkdownFile(fname string) string {
-	s, _ := ioutil.ReadFile(fname)
-	return parseMarkdown(string(s))
-}
-
-func parseMarkdown(src string) string {
-	src = markdownPatterns["h"].ReplaceAllStringFunc(src, markdownMakeH)
-	src = markdownPatterns["em"].ReplaceAllString(src, "<em>$1</em>")
-	src = markdownPatterns["inline"].ReplaceAllString(src, "<code>$1</code>")
-	src = markdownPatterns["img"].ReplaceAllString(src, "<img src=\"$2\" alt=\"$1\">")
-	src = markdownPatterns["a"].ReplaceAllString(src, "<a href=\"$2\">$1</a>")
-	src = markdownPatterns["hr"].ReplaceAllStringFunc(src, markdownMakeHr)
-	src = markdownPatterns["p"].ReplaceAllStringFunc(src, markdownMakeP)
-	return src
-}
 
 func renderTemplate(w http.ResponseWriter, name string, p *WebPage) error {
 	tmpl, ok := templates[name]
