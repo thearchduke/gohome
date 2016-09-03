@@ -21,6 +21,7 @@ Config
 
 type Config struct {
 	TemplateDir string
+	BlogDir     string
 	Port        string
 	Mail        map[string]string
 	BasicAuth   map[string]string
@@ -48,6 +49,8 @@ var appUrls map[string]string
 var templates map[string]*template.Template
 
 var markdownPatterns map[string]*regexp.Regexp
+
+var blogPosts map[string]string
 
 func initApp() {
 	loadConfig("config.json", &appConfig)
@@ -82,6 +85,16 @@ func initApp() {
 	markdownPatterns["inline"] = regexp.MustCompile("(?U)`(.*)`")
 	markdownPatterns["a"] = regexp.MustCompile(`(?U)\[(.*)\]\((.*)\)`)
 	markdownPatterns["img"] = regexp.MustCompile(`(?U)!\[(.*)\]\((.*)\)`)
+
+	blogPosts = make(map[string]string)
+	blogFiles, err := filepath.Glob(appConfig.BlogDir + "*.md")
+	if err != nil {
+		panic("Could not load blog markdown files")
+	}
+	for _, mdfile := range blogFiles {
+		blogPosts[strings.TrimSuffix(filepath.Base(mdfile), ".md")] =
+			parseMarkdownFile(mdfile)
+	}
 }
 
 /*//////
@@ -89,7 +102,8 @@ Types
 /////*/
 
 type WebPage struct {
-	Urls map[string]string
+	Urls     map[string]string
+	BlogPost template.HTML
 }
 
 func NewWebPage() *WebPage {
@@ -98,51 +112,55 @@ func NewWebPage() *WebPage {
 	}
 }
 
+func NewBlogPage(n string) *WebPage {
+	return &WebPage{
+		Urls:     appUrls,
+		BlogPost: template.HTML(blogPosts[n]),
+	}
+}
+
 /*//////
 Functions & Helpers
 /////*/
 
 // markdown
-func markdownMakeH(src []byte) []byte {
-	str_src := string(src)
-	octothorps := strings.Count(str_src, "#")
-	s := strings.Replace(str_src, "#", "", -1)
+func markdownMakeH(src string) string {
+	octothorps := strings.Count(src, "#")
+	s := strings.Replace(src, "#", "", -1)
 	out := fmt.Sprintf("<h%[1]v>%[2]v</h%[1]v>", octothorps, s)
 	if s != "\n" {
-		return []byte(out)
+		return out
 	}
 	return src
 }
 
-func markdownMakeP(src []byte) []byte {
-	s := string(src)
-	if s != "\n" {
-		return []byte("<p>" + s + "</p>")
+func markdownMakeP(src string) string {
+	if src != "\n" {
+		return "<p>" + src + "</p>"
 	}
 	return src
 }
 
-func markdownMakeHr(src []byte) []byte {
-	s := string(src)
-	if s != "\n" {
-		return []byte("<hr/>")
+func markdownMakeHr(src string) string {
+	if src != "\n" {
+		return "<hr/>"
 	}
 	return src
 }
 
-func parseMarkdownFile(fname string) []byte {
+func parseMarkdownFile(fname string) string {
 	s, _ := ioutil.ReadFile(fname)
-	return parseMarkdown(s)
+	return parseMarkdown(string(s))
 }
 
-func parseMarkdown(src []byte) []byte {
-	src = markdownPatterns["h"].ReplaceAllFunc(src, markdownMakeH)
-	src = markdownPatterns["em"].ReplaceAll(src, []byte("<em>$1</em>"))
-	src = markdownPatterns["inline"].ReplaceAll(src, []byte("<code>$1</code>"))
-	src = markdownPatterns["img"].ReplaceAll(src, []byte("<img src=\"$2\" alt=\"$1\">"))
-	src = markdownPatterns["a"].ReplaceAll(src, []byte("<a href=\"$2\">$1</a>"))
-	src = markdownPatterns["hr"].ReplaceAllFunc(src, markdownMakeHr)
-	src = markdownPatterns["p"].ReplaceAllFunc(src, markdownMakeP)
+func parseMarkdown(src string) string {
+	src = markdownPatterns["h"].ReplaceAllStringFunc(src, markdownMakeH)
+	src = markdownPatterns["em"].ReplaceAllString(src, "<em>$1</em>")
+	src = markdownPatterns["inline"].ReplaceAllString(src, "<code>$1</code>")
+	src = markdownPatterns["img"].ReplaceAllString(src, "<img src=\"$2\" alt=\"$1\">")
+	src = markdownPatterns["a"].ReplaceAllString(src, "<a href=\"$2\">$1</a>")
+	src = markdownPatterns["hr"].ReplaceAllStringFunc(src, markdownMakeHr)
+	src = markdownPatterns["p"].ReplaceAllStringFunc(src, markdownMakeP)
 	return src
 }
 
@@ -166,13 +184,17 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "index", NewWebPage())
 }
 
+func blogTestHandler(w http.ResponseWriter, r *http.Request) {
+	renderTemplate(w, "blog", NewBlogPage("test"))
+}
+
 //-/-/-/-/-/-/-/-/
 // Here we go!
 //-/-/-/-/-/-/-/-/
 func main() {
 	initApp()
-	//fmt.Println(string(parseMarkdownFile("reg.md")))
 	http.HandleFunc(appUrls["home"], homeHandler)
+	http.HandleFunc(appUrls["blog"], blogTestHandler)
 	http.Handle(appUrls["static"],
 		http.StripPrefix(appUrls["static"],
 			http.FileServer(http.Dir(appUrls["staticRoot"]))))

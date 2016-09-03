@@ -1,0 +1,68 @@
+{{ define "title" }}Home{{ end }}
+
+{{ define "body" }}
+<div class="jumbotron">
+	<span id="jumbo_content">
+
+		{{ .BlogPost }}
+
+    </span>
+</div>
+{{ end }}
+
+{{ define "styles" }}body {
+	background-image: url(
+      "{{ .Urls.static }}backgrounds/bridge.jpg"
+    );
+	background-attachment: fixed;
+	background-size: cover;
+}
+
+.header {
+	padding-left: 10px;
+	padding-top: 10px;
+	padding-bottom: 10px;
+	background: black;
+	font-color: white;
+}
+
+.jumbotron {
+	opacity: 0.8;
+}
+
+#contactform {
+	opacity: 1.0;
+	background-color: white;
+	width: 100%;
+	height: 100%;
+}
+
+.blockquote {
+	font-size: 10px;
+}
+{{ end }}
+
+{{ define "scripts" }}
+<script>
+	$(document).ready(function() {
+		$('#contactform').hide();
+        $('#gallery').hide();
+		$('#contact_btn').click(function() {
+			$('#jumbo_content').fadeOut("slow", function() {
+			});
+		 	$('#jumbo_replace').fadeIn("slow", function() {
+			});
+		  	$('#contactform').fadeIn("slow", function() {
+		  	});
+		});
+        $('[data-toggle="tooltip"]').tooltip();
+        $('[data-toggle="tooltip-html"]').tooltip({
+          'html': true
+        });
+        $('#show_gallery').click(function() {
+          $('#gallery').fadeIn('slow', function() {
+          });
+        });
+	});
+</script>
+{{ end }}
