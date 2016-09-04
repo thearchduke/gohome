@@ -41,6 +41,28 @@ func loadConfig(fname string, cf *Config) {
 var appConfig Config
 
 /*//////
+Types
+/////*/
+
+type WebPage struct {
+	Urls     *map[string]string
+	BlogPost template.HTML
+}
+
+func NewWebPage() *WebPage {
+	return &WebPage{
+		Urls: &appUrls,
+	}
+}
+
+func NewBlogPage(name string) *WebPage {
+	return &WebPage{
+		Urls:     &appUrls,
+		BlogPost: template.HTML(blogPosts[name]),
+	}
+}
+
+/*//////
 Global-y stuff
 /////*/
 
@@ -50,7 +72,7 @@ var templates map[string]*template.Template
 
 var blogPosts map[string]string
 
-var parser *markdown.MarkdownParser
+var mdParser *markdown.MarkdownParser
 
 func initApp() {
 	loadConfig("config.json", &appConfig)
@@ -83,34 +105,12 @@ func initApp() {
 		panic("Could not load blog markdown files")
 	}
 
-	parser = markdown.NewMarkdownParser()
+	mdParser = markdown.NewMarkdownParser()
 
 	for _, mdfile := range blogFiles {
 		s, _ := ioutil.ReadFile(mdfile)
 		blogPosts[strings.TrimSuffix(filepath.Base(mdfile), ".md")] =
-			parser.Parse(string(s))
-	}
-}
-
-/*//////
-Types
-/////*/
-
-type WebPage struct {
-	Urls     map[string]string
-	BlogPost template.HTML
-}
-
-func NewWebPage() *WebPage {
-	return &WebPage{
-		Urls: appUrls,
-	}
-}
-
-func NewBlogPage(n string) *WebPage {
-	return &WebPage{
-		Urls:     appUrls,
-		BlogPost: template.HTML(blogPosts[n]),
+			mdParser.Parse(string(s))
 	}
 }
 
@@ -142,6 +142,10 @@ func blogTestHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "blog", NewBlogPage("test"))
 }
 
+func photosHandler(w http.ResponseWriter, r *http.Request) {
+	renderTemplate(w, "photos", NewWebPage())
+}
+
 //-/-/-/-/-/-/-/-/
 // Here we go!
 //-/-/-/-/-/-/-/-/
@@ -149,6 +153,7 @@ func main() {
 	initApp()
 	http.HandleFunc(appUrls["home"], homeHandler)
 	http.HandleFunc(appUrls["blog"], blogTestHandler)
+	http.HandleFunc(appUrls["photos"], photosHandler)
 	http.Handle(appUrls["static"],
 		http.StripPrefix(appUrls["static"],
 			http.FileServer(http.Dir(appUrls["staticRoot"]))))
