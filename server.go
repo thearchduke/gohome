@@ -47,17 +47,20 @@ Types
 type WebPage struct {
 	Urls     *map[string]string
 	BlogPost template.HTML
+	Message  string
 }
 
-func NewWebPage() *WebPage {
+func NewWebPage(msg string) *WebPage {
 	return &WebPage{
-		Urls: &appUrls,
+		Urls:    &appUrls,
+		Message: msg,
 	}
 }
 
-func NewBlogPage(name string) *WebPage {
+func NewBlogPage(name, msg string) *WebPage {
 	return &WebPage{
 		Urls:     &appUrls,
+		Message:  msg,
 		BlogPost: template.HTML(blogPosts[name]),
 	}
 }
@@ -134,16 +137,27 @@ func renderTemplate(w http.ResponseWriter, name string, p *WebPage) error {
 Handlers
 /////*/
 
+/*
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "index", NewWebPage())
 }
 
-func blogTestHandler(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "blog", NewBlogPage("test"))
-}
-
 func photosHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "photos", NewWebPage())
+}
+*/
+
+func blogTestHandler(w http.ResponseWriter, r *http.Request) {
+	renderTemplate(w, "blog", NewBlogPage("test", ""))
+}
+
+func genericHandler(w http.ResponseWriter, r *http.Request) {
+	path := strings.Replace(r.URL.Path, "/", "", -1)
+	if _, ok := templates[path]; ok {
+		renderTemplate(w, path, NewWebPage(""))
+	} else {
+		renderTemplate(w, "home", NewWebPage("Looks like we couldn't find your page, sorry."))
+	}
 }
 
 //-/-/-/-/-/-/-/-/
@@ -151,13 +165,13 @@ func photosHandler(w http.ResponseWriter, r *http.Request) {
 //-/-/-/-/-/-/-/-/
 func main() {
 	initApp()
-	http.HandleFunc(appUrls["home"], homeHandler)
+	//http.HandleFunc(appUrls["home"], homeHandler)
 	http.HandleFunc(appUrls["blog"], blogTestHandler)
-	http.HandleFunc(appUrls["photos"], photosHandler)
+	//http.HandleFunc(appUrls["photos"], photosHandler)
 	http.Handle(appUrls["static"],
 		http.StripPrefix(appUrls["static"],
 			http.FileServer(http.Dir(appUrls["staticRoot"]))))
-	//http.HandleFunc("/", homeHandler)
+	http.HandleFunc("/", genericHandler)
 	err := http.ListenAndServe(":"+appConfig.Port, nil)
 	if err != nil {
 		fmt.Println(err)
