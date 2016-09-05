@@ -43,17 +43,24 @@
         </nav>
         <h3 class="text-muted">J. Tynan Burke, MLS</h3>
      </div>
-     <h2 style="text-align: center;">{{ .Message }}</h2>
+     {{ if .Message }}
+		<div class="row" id="home_content" style="text-align: center; background-color: #99bb99; opacity: 0.9;">
+			<div class="col-lg-12">
+				<h3>{{ .Message }}</h3>
+			</div>
+		</div>
+	 {{ end }}
+
 	{{ template "body" . }}
 
     <footer class="footer">
-		<div class="row" id="home_content" style="text-align: center; background-color: #99bb99; opacity: 0.75;">
+		<div class="row" id="home_content" style="text-align: center; background-color: #99bb99; opacity: 0.9;">
 			<div class="col-lg-12">
 			  <p>
 				<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License</a>.
 				<br/>Copyright 2015 J. Tynan Burke
 
-			    <a href="http://golang.org/">
+			    <a href="https://github.com/thearchduke/gohome">
 				  <h4>Powered by Go!
 				    <img src="{{ .Urls.static }}gopherbw.png" border="0" alt="Go powered" title="Go powered">
 			      </h4>

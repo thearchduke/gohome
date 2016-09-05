@@ -1,12 +1,32 @@
-{{ define "title" }}Home{{ end }}
+{{ define "title" }}Blog{{ if .Title }}| {{ .Title }}{{ end }}{{ end }}
 
 {{ define "body" }}
 <div class="jumbotron">
 	<span id="jumbo_content">
+	{{ if .Title }}<h2>{{ .Title }}</h2>{{ end }}
+	{{ if .Date }}<h3>{{ .Date }}</h3>{{ end }}
+	</span>
+</div>
 
-		{{ .BlogPost }}
-
+<div class="row" id="blog_content">
+	<div class="col-lg-12">
+	<span id="blog_post">
+			{{ .BlogPost }}
+		<hr />
+		<p><small>
+			{{ if .Previous.a }}<span style="float: left;">
+				<a href="{{ .Urls.blog }}{{ .Previous.a }}">&lt;&lt;&lt; {{ .Previous.title }}</a>
+			</span>
+			{{ end}}
+			{{ if .Next.a }}
+			<span style="float: right;">
+				<a href="{{ .Urls.blog }}{{ .Next.a }}">{{ .Next.title }} &gt;&gt;&gt;</a>
+			</span>
+			{{ end }}
+		</small></p>
     </span>
+
+	</div>
 </div>
 {{ end }}
 
@@ -16,6 +36,14 @@
     );
 	background-attachment: fixed;
 	background-size: cover;
+}
+
+hr {
+	border-top: 1px solid #7c5645;
+}
+
+#blog_post {
+	text-align: left;
 }
 
 .header {

@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -38,16 +40,19 @@ func loadConfig(fname string, cf *Config) {
 	}
 }
 
-var appConfig Config
-
 /*//////
-Types
+Pages
 /////*/
 
 type WebPage struct {
-	Urls     *map[string]string
-	BlogPost template.HTML
-	Message  string
+	Urls      *map[string]string
+	BlogPost  template.HTML
+	BlogIndex *[]map[string]string
+	Message   string
+	Title     string
+	Date      string
+	Previous  map[string]string
+	Next      map[string]string
 }
 
 func NewWebPage(msg string) *WebPage {
@@ -57,11 +62,41 @@ func NewWebPage(msg string) *WebPage {
 	}
 }
 
-func NewBlogPage(name, msg string) *WebPage {
+func NewBlogPage(num, msg string) *WebPage {
+	if num == "main" {
+		return &WebPage{
+			Urls:      &appUrls,
+			Message:   msg,
+			BlogIndex: &blogIndex,
+		}
+
+	}
+	num_int, _ := strconv.Atoi(num)
+	prev_a := strconv.Itoa(num_int - 1)
+	next_a := strconv.Itoa(num_int + 1)
+	prev := make(map[string]string)
+	next := make(map[string]string)
+	if _, ok := blogPosts[prev_a]; ok {
+		prev = map[string]string{
+			"a":     prev_a,
+			"title": blogPosts[prev_a]["title"],
+		}
+	}
+	if _, ok := blogPosts[next_a]; ok {
+		next = map[string]string{
+			"a":     next_a,
+			"title": blogPosts[next_a]["title"],
+		}
+	}
+
 	return &WebPage{
 		Urls:     &appUrls,
 		Message:  msg,
-		BlogPost: template.HTML(blogPosts[name]),
+		BlogPost: template.HTML(blogPosts[num]["body"]),
+		Previous: prev,
+		Next:     next,
+		Title:    blogPosts[num]["title"],
+		Date:     blogPosts[num]["date"],
 	}
 }
 
@@ -69,11 +104,15 @@ func NewBlogPage(name, msg string) *WebPage {
 Global-y stuff
 /////*/
 
+var appConfig Config
+
 var appUrls map[string]string
 
 var templates map[string]*template.Template
 
-var blogPosts map[string]string
+var blogPosts map[string]map[string]string
+
+var blogIndex []map[string]string
 
 var mdParser *markdown.MarkdownParser
 
@@ -102,23 +141,33 @@ func initApp() {
 				tmpl, appConfig.TemplateDir+"base.tmpl"))
 	}
 
-	blogPosts = make(map[string]string)
 	blogFiles, err := filepath.Glob(appConfig.BlogDir + "*.md")
 	if err != nil {
 		panic("Could not load blog markdown files")
 	}
 
 	mdParser = markdown.NewMarkdownParser()
+	blogPosts = make(map[string]map[string]string)
+	metaMatcher := regexp.MustCompile("<META>::=<(.*)>::=\"(.*)\"")
 
 	for _, mdfile := range blogFiles {
 		s, _ := ioutil.ReadFile(mdfile)
-		blogPosts[strings.TrimSuffix(filepath.Base(mdfile), ".md")] =
-			mdParser.Parse(string(s))
+		whichPost := strings.TrimSuffix(filepath.Base(mdfile), ".md")
+		blogPosts[whichPost] = make(map[string]string)
+		blogPosts[whichPost]["body"] = mdParser.Parse(string(s))
+		metas := metaMatcher.FindAllStringSubmatch(string(s), -1)
+		for _, match := range metas {
+			blogPosts[whichPost][match[1]] = match[2]
+		}
+	}
+	blogIndex = make([]map[string]string, len(blogPosts))
+	for i, _ := range blogIndex {
+		blogIndex[i] = blogPosts[strconv.Itoa(i)]
 	}
 }
 
 /*//////
-Functions & Helpers
+Helpers
 /////*/
 
 func renderTemplate(w http.ResponseWriter, name string, p *WebPage) error {
@@ -126,7 +175,7 @@ func renderTemplate(w http.ResponseWriter, name string, p *WebPage) error {
 	if !ok {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Write([]byte(
-			"<h2>Better tell the administrator we couldn't find the template.</h2>"))
+			"<h2>Better tell the administrator something went wrong with the template.</h2>"))
 		return fmt.Errorf("Could not locate template")
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -137,25 +186,31 @@ func renderTemplate(w http.ResponseWriter, name string, p *WebPage) error {
 Handlers
 /////*/
 
-/*
-func homeHandler(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "index", NewWebPage())
-}
-
-func photosHandler(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "photos", NewWebPage())
-}
-*/
-
-func blogTestHandler(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "blog", NewBlogPage("test", ""))
+func blogHandler(w http.ResponseWriter, r *http.Request) {
+	splitPath := strings.Split(r.URL.Path, "/")
+	_, is_post := blogPosts[splitPath[2]]
+	switch {
+	case r.URL.Path == appUrls["blog"]:
+		renderTemplate(w, "blog_main", NewBlogPage("main", ""))
+	case is_post:
+		renderTemplate(w, "blog_post", NewBlogPage(splitPath[2], ""))
+	case !is_post:
+		renderTemplate(w, "blog_main",
+			NewBlogPage("main",
+				"I'm sorry, I couldn't find that blog post. Here are some others."))
+	}
 }
 
 func genericHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(r.URL.Path)
 	path := strings.Replace(r.URL.Path, "/", "", -1)
-	if _, ok := templates[path]; ok {
+	_, ok := templates[path]
+	switch {
+	case ok:
 		renderTemplate(w, path, NewWebPage(""))
-	} else {
+	case r.URL.Path == "/":
+		renderTemplate(w, "home", NewWebPage(""))
+	case !ok:
 		renderTemplate(w, "home", NewWebPage("Looks like we couldn't find your page, sorry."))
 	}
 }
@@ -165,11 +220,9 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 //-/-/-/-/-/-/-/-/
 func main() {
 	initApp()
-	//http.HandleFunc(appUrls["home"], homeHandler)
-	http.HandleFunc(appUrls["blog"], blogTestHandler)
-	//http.HandleFunc(appUrls["photos"], photosHandler)
+	http.HandleFunc(appUrls["blog"], blogHandler)
 	http.Handle(appUrls["static"],
-		http.StripPrefix(appUrls["static"],
+		http.StripPrefix("/static/",
 			http.FileServer(http.Dir(appUrls["staticRoot"]))))
 	http.HandleFunc("/", genericHandler)
 	err := http.ListenAndServe(":"+appConfig.Port, nil)

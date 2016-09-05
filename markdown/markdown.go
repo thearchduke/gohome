@@ -23,7 +23,7 @@ func NewMarkdownParser() *MarkdownParser {
 	p.patterns["inline"] = regexp.MustCompile("(?U)`(.*)`")
 	p.patterns["a"] = regexp.MustCompile(`(?U)\[(.*)\]\((.*)\)`)
 	p.patterns["img"] = regexp.MustCompile(`(?U)!\[(.*)\]\((.*)\)`)
-
+	p.patterns["meta"] = regexp.MustCompile("<META>.*")
 	return p
 }
 
@@ -63,6 +63,7 @@ func (p *MarkdownParser) Parse(src string) string {
 	src = p.patterns["img"].ReplaceAllString(src, "<img src=\"$2\" alt=\"$1\">")
 	src = p.patterns["a"].ReplaceAllString(src, "<a href=\"$2\">$1</a>")
 	src = p.patterns["hr"].ReplaceAllStringFunc(src, markdownMakeHr)
+	src = p.patterns["meta"].ReplaceAllString(src, "")
 	src = p.patterns["p"].ReplaceAllStringFunc(src, markdownMakeP)
 	return src
 }
