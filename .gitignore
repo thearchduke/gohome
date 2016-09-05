@@ -1,6 +1,5 @@
-config.json
+#config.json
 *.*~
-wiki.go
-static/
+#static/
 .DS_Store
 #server
