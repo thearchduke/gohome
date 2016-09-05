@@ -202,7 +202,6 @@ func blogHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func genericHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(r.URL.Path)
 	path := strings.Replace(r.URL.Path, "/", "", -1)
 	_, ok := templates[path]
 	switch {

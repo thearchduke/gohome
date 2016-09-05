@@ -14,17 +14,17 @@ type MarkdownParser struct {
 }
 
 func NewMarkdownParser() *MarkdownParser {
-	p := &MarkdownParser{patterns: make(map[string]*regexp.Regexp)}
+	p := MarkdownParser{patterns: make(map[string]*regexp.Regexp)}
 
 	p.patterns["h"] = regexp.MustCompile("(?m)\n|^#+ *[^#][^\n]*")
 	p.patterns["p"] = regexp.MustCompile("(?m)\n|^[^<][^#][^\n]+")
 	p.patterns["hr"] = regexp.MustCompile("(?m)\n|^---+")
-	p.patterns["em"] = regexp.MustCompile(`(?U)[\*_]+(.*)[\*_]+`)
-	p.patterns["inline"] = regexp.MustCompile("(?U)`(.*)`")
 	p.patterns["a"] = regexp.MustCompile(`(?U)\[(.*)\]\((.*)\)`)
+	p.patterns["em"] = regexp.MustCompile(`(?U)[\*]+(.*)[\*]+`)
+	p.patterns["inline"] = regexp.MustCompile("(?U)`(.*)`")
 	p.patterns["img"] = regexp.MustCompile(`(?U)!\[(.*)\]\((.*)\)`)
 	p.patterns["meta"] = regexp.MustCompile("<META>.*")
-	return p
+	return &p
 }
 
 func markdownMakeH(src string) string {
