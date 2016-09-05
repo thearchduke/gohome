@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -281,6 +282,18 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 //-/-/-/-/-/-/-/-/
 // Here we go!
 //-/-/-/-/-/-/-/-/
+
+// for heroku
+func GetPort() string {
+	var port = os.Getenv("PORT")
+
+	if port == "" {
+		port = appConfig.Port
+		fmt.Println("INFO: No PORT environment variable detected, defaulting to " + port)
+	}
+	return ":" + port
+}
+
 func main() {
 	initApp()
 	http.HandleFunc(appUrls["blog"], blogHandler)
@@ -288,7 +301,7 @@ func main() {
 		http.StripPrefix("/static/",
 			http.FileServer(http.Dir(appUrls["staticRoot"]))))
 	http.HandleFunc("/", genericHandler)
-	err := http.ListenAndServe(":"+appConfig.Port, nil)
+	err := http.ListenAndServe(GetPort(), nil)
 	if err != nil {
 		fmt.Println(err)
 	}
