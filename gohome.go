@@ -104,8 +104,6 @@ func NewBlogPage(num, msg string) *WebPage {
 Markdown
 //////*/
 
-var markdownPatterns map[string]*regexp.Regexp
-
 type MarkdownParser struct {
 	patterns map[string]*regexp.Regexp
 }
