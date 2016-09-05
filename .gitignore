@@ -3,4 +3,4 @@ config.json
 wiki.go
 static/
 .DS_Store
-server
+#server
