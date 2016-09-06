@@ -108,7 +108,7 @@ type MarkdownParser struct {
 	patterns map[string]*regexp.Regexp
 }
 
-func NewMarkdownParser() *MarkdownParser {
+func NewMarkdownParser() MarkdownParser {
 	p := MarkdownParser{patterns: make(map[string]*regexp.Regexp)}
 
 	p.patterns["h"] = regexp.MustCompile("(?m)\n|^#+ *[^#][^\n]*")
@@ -119,7 +119,7 @@ func NewMarkdownParser() *MarkdownParser {
 	p.patterns["inline"] = regexp.MustCompile("(?U)`(.*)`")
 	p.patterns["img"] = regexp.MustCompile(`(?U)!\[(.*)\]\((.*)\)`)
 	p.patterns["meta"] = regexp.MustCompile("<META>.*")
-	return &p
+	return p
 }
 
 func markdownMakeH(src string) string {
@@ -134,7 +134,7 @@ func markdownMakeH(src string) string {
 
 func markdownMakeP(src string) string {
 	if src != "\n" {
-		return "<p>" + src + "</p>"
+		return fmt.Sprintf("<p>%v</p>", src)
 	}
 	return src
 }
@@ -146,12 +146,12 @@ func markdownMakeHr(src string) string {
 	return src
 }
 
-func (p *MarkdownParser) ParseFile(fname string) string {
+func (p MarkdownParser) ParseFile(fname string) string {
 	b, _ := ioutil.ReadFile(fname)
 	return p.Parse(string(b))
 }
 
-func (p *MarkdownParser) Parse(src string) string {
+func (p MarkdownParser) Parse(src string) string {
 	src = p.patterns["h"].ReplaceAllStringFunc(src, markdownMakeH)
 	src = p.patterns["em"].ReplaceAllString(src, "<em>$1</em>")
 	src = p.patterns["inline"].ReplaceAllString(src, "<code>$1</code>")
@@ -177,7 +177,7 @@ var blogPosts map[string]map[string]string
 
 var blogIndex []map[string]string
 
-var mdParser *MarkdownParser
+var mdParser MarkdownParser
 
 func initApp() {
 	loadConfig("config.json", &appConfig)
@@ -266,13 +266,13 @@ func blogHandler(w http.ResponseWriter, r *http.Request) {
 
 func genericHandler(w http.ResponseWriter, r *http.Request) {
 	path := strings.Replace(r.URL.Path, "/", "", -1)
-	_, ok := templates[path]
+	_, is_page := templates[path]
 	switch {
-	case ok:
+	case is_page:
 		renderTemplate(w, path, NewWebPage(""))
 	case r.URL.Path == "/":
 		renderTemplate(w, "home", NewWebPage(""))
-	case !ok:
+	case !is_page:
 		renderTemplate(w, "home", NewWebPage("Looks like we couldn't find your page, sorry."))
 	}
 }
