@@ -151,16 +151,16 @@ func (p MarkdownParser) ParseFile(fname string) string {
 	return p.Parse(string(b))
 }
 
-func (p MarkdownParser) Parse(src string) string {
-	src = p.patterns["h"].ReplaceAllStringFunc(src, markdownMakeH)
-	src = p.patterns["em"].ReplaceAllString(src, "<em>$1</em>")
-	src = p.patterns["inline"].ReplaceAllString(src, "<code>$1</code>")
-	src = p.patterns["img"].ReplaceAllString(src, "<img src=\"$2\" alt=\"$1\">")
-	src = p.patterns["a"].ReplaceAllString(src, "<a href=\"$2\">$1</a>")
-	src = p.patterns["hr"].ReplaceAllStringFunc(src, markdownMakeHr)
-	src = p.patterns["meta"].ReplaceAllString(src, "")
-	src = p.patterns["p"].ReplaceAllStringFunc(src, markdownMakeP)
-	return src
+func (p MarkdownParser) Parse(src string) (parsed string) {
+	parsed = p.patterns["h"].ReplaceAllStringFunc(src, markdownMakeH)
+	parsed = p.patterns["em"].ReplaceAllString(parsed, "<em>$1</em>")
+	parsed = p.patterns["inline"].ReplaceAllString(parsed, "<code>$1</code>")
+	parsed = p.patterns["img"].ReplaceAllString(parsed, "<img src=\"$2\" alt=\"$1\">")
+	parsed = p.patterns["a"].ReplaceAllString(parsed, "<a href=\"$2\">$1</a>")
+	parsed = p.patterns["hr"].ReplaceAllStringFunc(parsed, markdownMakeHr)
+	parsed = p.patterns["meta"].ReplaceAllString(parsed, "")
+	parsed = p.patterns["p"].ReplaceAllStringFunc(parsed, markdownMakeP)
+	return
 }
 
 /*//////
@@ -283,7 +283,7 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 
 // for heroku
 func GetPort() string {
-	var port = os.Getenv("PORT")
+	port := os.Getenv("PORT")
 
 	if port == "" {
 		port = appConfig.Port
