@@ -2,12 +2,30 @@
 
 {{ define "body" }}
 <div class="jumbotron">
+      	<span id="jumbo_replace">
+	    	<div id="contactform" style="background-color: #EEE">
+  <h2>Contact</h2>
+	  <form action="/" method=post>
+	  <h4><i>all fields required</i></h4>
+	    <ul style="text-align: left;">
+		    <li>Name:<br/>
+		    <input type="text" name="name"></li>
+		    <li>Email:<br/>
+		    <input type="text" name="email"></li>
+		    <li>Subject:<br/>
+		    <input type="text" name="subject"></li>
+		    <li>Message:<br/>
+		    <input type="textarea" name="message"></li>
+		    <br/><input type="submit" value="Submit">
+		  </form>
+  		  </div>
+      	</span>
 	<span id="jumbo_content">
 	<h1>Greetings.</h1>
 	<p class="lead">Welcome to my corner of the Web. Are these any help?</p>
 	<p>
 		<a id="resume_btn" href="{{ .Urls.static }}Tynan Burke 2016.pdf" style="width: 40%;">Resume (PDF)</a>
-&nbsp;&nbsp;|&nbsp;&nbsp;
+			&nbsp;&nbsp;|&nbsp;&nbsp;
 		<a id="contact_btn" href="#" style="width: 40%;">Email Tynan</a>
 	</p>
 
@@ -65,7 +83,7 @@
 
           <h4>Writing</h4>
           <p>I blog, and I can blather about current events with the best of them, which is free unless you want it well-written.</p>
-          <p>I also write fiction, which is generally well-received though I haven't tried to publish recently. If you'd like a sample of my newest just let me know. <a href="{{ .Urls.writing }}">Click here</a> to see a bit.</p>
+          <p>I also write fiction, which is generally well-received though I haven't tried to publish recently. If you'd like a sample of my newest just let me know. My email's on my resumé.</p>
         </div>
 	</div>
 {{ end }}

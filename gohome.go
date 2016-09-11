@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/thearchduke/gohome/formhandler"
+	"github.com/thearchduke/gohome/markdown"
 	"html/template"
 	"io/ioutil"
 	"net/http"
@@ -12,6 +14,11 @@ import (
 	"strconv"
 	"strings"
 )
+
+//////FORM VALIDATION: Good place to use a Checker interface to make
+// so that I can make a slice of things that are checkable and just run
+// check() on them!
+//////
 
 /*//////
 Constants
@@ -48,7 +55,7 @@ type WebPage struct {
 	Urls      *map[string]string
 	BlogPost  template.HTML
 	BlogIndex *[]map[string]string
-	Message   string
+	Message   template.HTML
 	Title     string
 	Date      string
 	Previous  map[string]string
@@ -58,7 +65,7 @@ type WebPage struct {
 func NewWebPage(msg string) *WebPage {
 	return &WebPage{
 		Urls:    &appUrls,
-		Message: msg,
+		Message: template.HTML(msg),
 	}
 }
 
@@ -66,7 +73,7 @@ func NewBlogPage(num, msg string) *WebPage {
 	if num == "main" {
 		return &WebPage{
 			Urls:      &appUrls,
-			Message:   msg,
+			Message:   template.HTML(msg),
 			BlogIndex: &blogIndex,
 		}
 
@@ -91,76 +98,13 @@ func NewBlogPage(num, msg string) *WebPage {
 
 	return &WebPage{
 		Urls:     &appUrls,
-		Message:  msg,
+		Message:  template.HTML(msg),
 		BlogPost: template.HTML(blogPosts[num]["body"]),
 		Previous: prev,
 		Next:     next,
 		Title:    blogPosts[num]["title"],
 		Date:     blogPosts[num]["date"],
 	}
-}
-
-/*//////
-Markdown
-//////*/
-
-type MarkdownParser struct {
-	patterns map[string]*regexp.Regexp
-}
-
-func NewMarkdownParser() MarkdownParser {
-	p := MarkdownParser{patterns: make(map[string]*regexp.Regexp)}
-
-	p.patterns["h"] = regexp.MustCompile("(?m)\n|^#+ *[^#][^\n]*")
-	p.patterns["p"] = regexp.MustCompile("(?m)\n|^[^<][^#][^\n]+")
-	p.patterns["hr"] = regexp.MustCompile("(?m)\n|^---+")
-	p.patterns["a"] = regexp.MustCompile(`(?U)\[(.*)\]\((.*)\)`)
-	p.patterns["em"] = regexp.MustCompile(`(?U)[\*]+(.*)[\*]+`)
-	p.patterns["inline"] = regexp.MustCompile("(?U)`(.*)`")
-	p.patterns["img"] = regexp.MustCompile(`(?U)!\[(.*)\]\((.*)\)`)
-	p.patterns["meta"] = regexp.MustCompile("<META>.*")
-	return p
-}
-
-func markdownMakeH(src string) string {
-	octothorps := strings.Count(src, "#")
-	s := strings.Replace(src, "#", "", -1)
-	out := fmt.Sprintf("<h%[1]v>%[2]v</h%[1]v>", octothorps, s)
-	if s != "\n" {
-		return out
-	}
-	return src
-}
-
-func markdownMakeP(src string) string {
-	if src != "\n" {
-		return fmt.Sprintf("<p>%v</p>", src)
-	}
-	return src
-}
-
-func markdownMakeHr(src string) string {
-	if src != "\n" {
-		return "<hr/>"
-	}
-	return src
-}
-
-func (p MarkdownParser) ParseFile(fname string) string {
-	b, _ := ioutil.ReadFile(fname)
-	return p.Parse(string(b))
-}
-
-func (p MarkdownParser) Parse(src string) (parsed string) {
-	parsed = p.patterns["h"].ReplaceAllStringFunc(src, markdownMakeH)
-	parsed = p.patterns["em"].ReplaceAllString(parsed, "<em>$1</em>")
-	parsed = p.patterns["inline"].ReplaceAllString(parsed, "<code>$1</code>")
-	parsed = p.patterns["img"].ReplaceAllString(parsed, "<img src=\"$2\" alt=\"$1\">")
-	parsed = p.patterns["a"].ReplaceAllString(parsed, "<a href=\"$2\">$1</a>")
-	parsed = p.patterns["hr"].ReplaceAllStringFunc(parsed, markdownMakeHr)
-	parsed = p.patterns["meta"].ReplaceAllString(parsed, "")
-	parsed = p.patterns["p"].ReplaceAllStringFunc(parsed, markdownMakeP)
-	return
 }
 
 /*//////
@@ -177,7 +121,7 @@ var blogPosts map[string]map[string]string
 
 var blogIndex []map[string]string
 
-var mdParser MarkdownParser
+var mdParser markdown.MarkdownParser
 
 func initApp() {
 	loadConfig("config.json", &appConfig)
@@ -209,7 +153,7 @@ func initApp() {
 		panic("Could not load blog markdown files")
 	}
 
-	mdParser = NewMarkdownParser()
+	mdParser = markdown.NewMarkdownParser()
 	blogPosts = make(map[string]map[string]string)
 	metaMatcher := regexp.MustCompile("<META>::=<(.*)>::=\"(.*)\"")
 
@@ -271,7 +215,15 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 	case is_page:
 		renderTemplate(w, path, NewWebPage(""))
 	case r.URL.Path == "/":
-		renderTemplate(w, "home", NewWebPage(""))
+		if r.Method == "POST" {
+			if _, err := formhandler.HandleEmailForm(r); err != nil {
+				renderTemplate(w, "home", NewWebPage(err.Error()))
+			} else {
+				renderTemplate(w, "home", NewWebPage("Thanks for your submission!"))
+			}
+		} else {
+			renderTemplate(w, "home", NewWebPage(""))
+		}
 	case !is_page:
 		renderTemplate(w, "home", NewWebPage("Looks like we couldn't find your page, sorry."))
 	}
