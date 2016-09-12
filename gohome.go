@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"io/ioutil"
 	"net/http"
+	"net/smtp"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -123,6 +124,8 @@ var blogIndex []map[string]string
 
 var mdParser markdown.MarkdownParser
 
+var mailAuth smtp.Auth
+
 func initApp() {
 	loadConfig("config.json", &appConfig)
 	appUrls = make(map[string]string)
@@ -171,6 +174,11 @@ func initApp() {
 	for i, _ := range blogIndex {
 		blogIndex[i] = blogPosts[strconv.Itoa(i)]
 	}
+
+	mailAuth = smtp.PlainAuth("",
+		appConfig.Mail["username"],
+		appConfig.Mail["password"],
+		appConfig.Mail["server"])
 }
 
 /*//////
@@ -187,6 +195,30 @@ func renderTemplate(w http.ResponseWriter, name string, p *WebPage) error {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	return tmpl.ExecuteTemplate(w, "base", p)
+}
+
+func sendContactFormEmail(form map[string]formhandler.Handler) error {
+	msg := fmt.Sprintf(`From: %v
+To: %v
+Subject: %v
+
+The following message was submitted via the www.tynanburke.com comment form: %v`,
+		form["email"].Guts()["output"].(string),
+		"tynanburke@gmail.com",
+		form["subject"].Guts()["output"].(string),
+		form["message"].Guts()["output"].(string))
+
+	err := smtp.SendMail(appConfig.Mail["server"]+":"+appConfig.Mail["port"],
+		mailAuth,
+		form["email"].Guts()["output"].(string),
+		[]string{"tynanburke@gmail.com"},
+		[]byte(msg))
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 /*//////
@@ -216,10 +248,15 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 		renderTemplate(w, path, NewWebPage(""))
 	case r.URL.Path == "/":
 		if r.Method == "POST" {
-			if _, err := formhandler.HandleEmailForm(r); err != nil {
+			if form, err := formhandler.HandleEmailForm(r); err != nil {
 				renderTemplate(w, "home", NewWebPage(err.Error()))
 			} else {
-				renderTemplate(w, "home", NewWebPage("Thanks for your submission!"))
+				mailError := sendContactFormEmail(form)
+				if mailError != nil {
+					renderTemplate(w, "home", NewWebPage(mailError.Error()))
+				} else {
+					renderTemplate(w, "home", NewWebPage("Thanks for your submission!"))
+				}
 			}
 		} else {
 			renderTemplate(w, "home", NewWebPage(""))
