@@ -11,25 +11,17 @@ import (
 Form handling
 //////*/
 
-func HandleEmailForm(r *http.Request) (map[string]Handler, error) {
+func HandleEmailForm(r *http.Request) (map[string]FormHandler, error) {
 	err := r.ParseForm()
 	if err != nil {
 		return nil, err
 	}
 
-	form := map[string]Handler{
-		"name": &NameField{
-			input: r.Form.Get("name"),
-		},
-		"email": &EmailField{
-			input: r.Form.Get("email"),
-		},
-		"subject": &SubjectField{
-			input: r.Form.Get("subject"),
-		},
-		"message": &MessageField{
-			input: r.Form.Get("message"),
-		},
+	form := map[string]FormHandler{
+		"name":    NewTextField(r.Form.Get("name"), "Name", true),
+		"email":   NewEmailField(r.Form.Get("email"), "Email", true),
+		"subject": NewTextField(r.Form.Get("subject"), "Subject", true),
+		"message": NewTextField(r.Form.Get("message"), "Message", true),
 	}
 	if err_str := HandleForm(&form); err_str != "" {
 		return nil, errors.New(err_str)
@@ -37,7 +29,7 @@ func HandleEmailForm(r *http.Request) (map[string]Handler, error) {
 	return form, nil
 }
 
-func HandleForm(form *map[string]Handler) string {
+func HandleForm(form *map[string]FormHandler) string {
 	errs := ""
 	for _, field := range *form {
 		if err := field.Handle(); err != nil {
@@ -49,84 +41,76 @@ func HandleForm(form *map[string]Handler) string {
 
 //////////////////////////////////////////////
 
-type Handler interface {
+type FormHandler interface {
 	Handle() error
-	Guts() map[string]interface{}
+	Input() interface{}
+	Output() interface{}
 }
 
 //////////////////////////////////////////////
 
-type NameField struct {
-	input  string
-	output string
+type TextField struct {
+	input    string
+	output   string
+	name     string
+	required bool
 }
 
-func (f *NameField) Handle() error {
+func (f *TextField) Handle() error {
 	f.output = f.input
-	if f.output == "" {
-		return errors.New("Name is required")
+	if f.output == "" && f.required == true {
+		return errors.New(fmt.Sprintf("%v is required", f.name))
 	}
 	return nil
 }
 
-func (f NameField) Guts() map[string]interface{} {
-	return map[string]interface{}{"input": f.input, "output": f.output}
+func (f *TextField) Input() interface{} {
+	return f.input
+}
+
+func (f *TextField) Output() interface{} {
+	return f.output
+}
+
+func NewTextField(i string, n string, req bool) *TextField {
+	return &TextField{
+		input:    i,
+		name:     n,
+		required: req,
+	}
 }
 
 //////////////////////////////////////////////
 
 type EmailField struct {
-	input  string
-	output string
+	input    string
+	output   string
+	name     string
+	required bool
 }
 
 func (f *EmailField) Handle() error {
 	match, _ := regexp.MatchString(`(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b`, f.input)
-	if match == false {
+	// vv NOTE: this doesn't match empty string ^^
+	if match == false && f.required == true {
 		return errors.New("Invalid email address")
 	}
 	f.output = f.input
 	return nil
 }
 
-func (f EmailField) Guts() map[string]interface{} {
-	return map[string]interface{}{"input": f.input, "output": f.output}
+func (f *EmailField) Input() interface{} {
+	return f.input
 }
 
-//////////////////////////////////////////////
-
-type SubjectField struct {
-	input  string
-	output string
+func (f *EmailField) Output() interface{} {
+	return f.output
 }
 
-func (f *SubjectField) Handle() error {
-	f.output = f.input
-	if f.output == "" {
-		return errors.New("Subject is required")
+func NewEmailField(i string, n string, req bool) *EmailField {
+	return &EmailField{
+		input:    i,
+		name:     n,
+		required: req,
 	}
-	return nil
-}
-
-func (f SubjectField) Guts() map[string]interface{} {
-	return map[string]interface{}{"input": f.input, "output": f.output}
-}
-
-//////////////////////////////////////////////
-
-type MessageField struct {
-	input  string
-	output string
-}
-
-func (f *MessageField) Handle() error {
-	f.output = f.input
-	if f.output == "" {
-		return errors.New("Message is required")
-	}
-	return nil
-}
-
-func (f MessageField) Guts() map[string]interface{} {
-	return map[string]interface{}{"input": f.input, "output": f.output}
 }

@@ -197,27 +197,26 @@ func renderTemplate(w http.ResponseWriter, name string, p *WebPage) error {
 	return tmpl.ExecuteTemplate(w, "base", p)
 }
 
-func sendContactFormEmail(form map[string]formhandler.Handler) error {
+func sendContactFormEmail(form map[string]formhandler.FormHandler) error {
 	msg := fmt.Sprintf(`From: %v
 To: %v
 Subject: %v
 
 The following message was submitted via the www.tynanburke.com comment form: %v`,
-		form["email"].Guts()["output"].(string),
+		form["email"].Output().(string),
 		"tynanburke@gmail.com",
-		form["subject"].Guts()["output"].(string),
-		form["message"].Guts()["output"].(string))
+		form["subject"].Output().(string),
+		form["message"].Output().(string))
 
 	err := smtp.SendMail(appConfig.Mail["server"]+":"+appConfig.Mail["port"],
 		mailAuth,
-		form["email"].Guts()["output"].(string),
+		form["email"].Output().(string),
 		[]string{"tynanburke@gmail.com"},
 		[]byte(msg))
 
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -251,8 +250,7 @@ func genericHandler(w http.ResponseWriter, r *http.Request) {
 			if form, err := formhandler.HandleEmailForm(r); err != nil {
 				renderTemplate(w, "home", NewWebPage(err.Error()))
 			} else {
-				mailError := sendContactFormEmail(form)
-				if mailError != nil {
+				if mailError := sendContactFormEmail(form); mailError != nil {
 					renderTemplate(w, "home", NewWebPage(mailError.Error()))
 				} else {
 					renderTemplate(w, "home", NewWebPage("Thanks for your submission!"))
