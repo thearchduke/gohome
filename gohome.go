@@ -70,8 +70,8 @@ func NewWebPage(msg string) *WebPage {
 	}
 }
 
-func NewBlogPage(num, msg string) *WebPage {
-	if num == "main" {
+func NewBlogPage(num int, msg string) *WebPage {
+	if num == -1 {
 		return &WebPage{
 			Urls:      &appUrls,
 			Message:   template.HTML(msg),
@@ -79,32 +79,30 @@ func NewBlogPage(num, msg string) *WebPage {
 		}
 
 	}
-	num_int, _ := strconv.Atoi(num)
-	prev_a := strconv.Itoa(num_int - 1)
-	next_a := strconv.Itoa(num_int + 1)
-	prev := make(map[string]string)
-	next := make(map[string]string)
-	if _, ok := blogPosts[prev_a]; ok {
+	prev_a := num - 1
+	next_a := num + 1
+	prev, next := make(map[string]string), make(map[string]string)
+	if prev_a >= 0 {
 		prev = map[string]string{
-			"a":     prev_a,
-			"title": blogPosts[prev_a]["title"],
+			"a":     strconv.Itoa(prev_a),
+			"title": blogIndex[prev_a]["title"],
 		}
 	}
-	if _, ok := blogPosts[next_a]; ok {
+	if next_a < len(blogIndex) {
 		next = map[string]string{
-			"a":     next_a,
-			"title": blogPosts[next_a]["title"],
+			"a":     strconv.Itoa(next_a),
+			"title": blogIndex[next_a]["title"],
 		}
 	}
 
 	return &WebPage{
 		Urls:     &appUrls,
 		Message:  template.HTML(msg),
-		BlogPost: template.HTML(blogPosts[num]["body"]),
+		BlogPost: template.HTML(blogIndex[num]["body"]),
 		Previous: prev,
 		Next:     next,
-		Title:    blogPosts[num]["title"],
-		Date:     blogPosts[num]["date"],
+		Title:    blogIndex[num]["title"],
+		Date:     blogIndex[num]["date"],
 	}
 }
 
@@ -117,8 +115,6 @@ var appConfig Config
 var appUrls map[string]string
 
 var templates map[string]*template.Template
-
-var blogPosts map[string]map[string]string
 
 var blogIndex []map[string]string
 
@@ -157,22 +153,19 @@ func initApp() {
 	}
 
 	mdParser = markdown.NewMarkdownParser()
-	blogPosts = make(map[string]map[string]string)
+	blogIndex = make([]map[string]string, len(blogFiles))
 	metaMatcher := regexp.MustCompile("<META>::=<(.*)>::=\"(.*)\"")
 
 	for _, mdfile := range blogFiles {
 		s, _ := ioutil.ReadFile(mdfile)
 		whichPost := strings.TrimSuffix(filepath.Base(mdfile), ".md")
-		blogPosts[whichPost] = make(map[string]string)
-		blogPosts[whichPost]["body"] = mdParser.Parse(string(s))
+		n, _ := strconv.Atoi(whichPost)
+		blogIndex[n] = make(map[string]string)
+		blogIndex[n]["body"] = mdParser.Parse(string(s))
 		metas := metaMatcher.FindAllStringSubmatch(string(s), -1)
 		for _, match := range metas {
-			blogPosts[whichPost][match[1]] = match[2]
+			blogIndex[n][match[1]] = match[2]
 		}
-	}
-	blogIndex = make([]map[string]string, len(blogPosts))
-	for i, _ := range blogIndex {
-		blogIndex[i] = blogPosts[strconv.Itoa(i)]
 	}
 
 	mailAuth = smtp.PlainAuth("",
@@ -226,16 +219,15 @@ Handlers
 
 func blogHandler(w http.ResponseWriter, r *http.Request) {
 	splitPath := strings.Split(r.URL.Path, "/")
-	_, is_post := blogPosts[splitPath[2]]
+	whichPost, err := strconv.Atoi(splitPath[2])
 	switch {
 	case r.URL.Path == appUrls["blog"]:
-		renderTemplate(w, "blog_main", NewBlogPage("main", ""))
-	case is_post:
-		renderTemplate(w, "blog_post", NewBlogPage(splitPath[2], ""))
-	case !is_post:
-		renderTemplate(w, "blog_main",
-			NewBlogPage("main",
-				"I'm sorry, I couldn't find that blog post. Here are some others."))
+		renderTemplate(w, "blog_main", NewBlogPage(-1, ""))
+	case err != nil || whichPost > len(blogIndex)-1 || whichPost < 0:
+		renderTemplate(w, "blog_main", NewBlogPage(-1,
+			"I'm sorry, I couldn't find that blog post. Here are some others."))
+	default:
+		renderTemplate(w, "blog_post", NewBlogPage(whichPost, ""))
 	}
 }
 
